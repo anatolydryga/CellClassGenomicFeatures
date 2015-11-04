@@ -1,0 +1,71 @@
+# Imports
+
+```{r}
+library(dplyr)
+library(GenomicRanges)
+library(intSiteRetriever)
+library(hiAnnotator)
+library(BSgenome)
+```
+
+# Data Wrangling
+
+Lets load reference genome:
+```{r}
+referenceGenome <- "hg18"
+reference <- get_reference_genome(referenceGenome)
+```
+
+Cell type and genomic location data:
+```{r}
+cellType_location <- read.csv("fdr-empir.csv")
+columns <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell", "location")
+cell_location <- select(cellType_location, one_of(columns)) 
+# TEMP FOR DEVELOPMENT
+cell_location <- sample_frac(cell_location, 0.05)
+```
+
+For each cell type we need to get genomic locations of sites:
+```{r}
+cell_types <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell")
+sites_for_cell_type <- lapply(cell_types, function(cell_type) {
+    cell_type_present <- filter_(cell_location, paste(cell_type, " > 0"))
+    data_frame(location=cell_type_present$location, label=cell_type) 
+})
+sites <- do.call(rbind, sites_for_cell_type)
+```
+
+Create genomic ranges object and add metadata for heatmaps:
+```{r}
+sites$type <- "insertion" # real integration event
+sites$siteID <- seq(1, nrow(sites))
+sites_meta <- sites[c("siteID", "label", "type")]
+sites <- GRanges(sites$location, seqinfo = seqinfo(reference))
+mcols(sites) <- sites_meta
+```
+
+Now we need to create several(N_MRCs) matched random controls:
+```{r}
+N_MRCs <- 3
+siteIDs <- sites$siteID
+mrcs <- get_random_positions(siteIDs, reference, number_of_positions = N_MRCs)
+mrcs$label <- rep(sites$label, each=N_MRCs)
+mrcs$type <- "match"
+mrcs$location <- paste0(mrcs$chr, ":", mrcs$position, "-", mrcs$position, ":", mrcs$strand)
+mrcs_meta <- mrcs[c("siteID", "label", "type")]
+mrcs <- GRanges(mrcs$location, seqinfo=seqinfo(reference))
+mcols(mrcs) <- mrcs_meta
+```
+
+Now we have real sites and controls and required metadata. 'SiteID' to link
+sites and controls, 'type' to distiunguish them and 'label' for final labeling on 
+plot:
+```{r}
+sites_mrcs <- c(sites, mrcs)
+```
+
+
+# Genomic Heatmap
+
+# Epigenetic Heatmap
+
