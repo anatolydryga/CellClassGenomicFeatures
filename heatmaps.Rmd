@@ -2,10 +2,15 @@
 
 ```{r}
 library(dplyr)
+library(devtools)
 library(GenomicRanges)
 library(intSiteRetriever)
 library(hiAnnotator)
 library(BSgenome)
+library(pipeUtils)
+
+source_url('https://raw.githubusercontent.com/BushmanLab/genomicHeatmapMaker/master/genomicHeatmapMaker.R')
+source_url('https://raw.githubusercontent.com/BushmanLab/genomicHeatmapMaker/master/utils.R')
 ```
 
 # Data Wrangling
@@ -30,7 +35,7 @@ For each cell type we need to get genomic locations of sites:
 cell_types <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell")
 sites_for_cell_type <- lapply(cell_types, function(cell_type) {
     cell_type_present <- filter_(cell_location, paste(cell_type, " > 0"))
-    data_frame(location=cell_type_present$location, label=cell_type) 
+    data_frame(location=cell_type_present$location, sampleName=cell_type) 
 })
 sites <- do.call(rbind, sites_for_cell_type)
 ```
@@ -39,7 +44,7 @@ Create genomic ranges object and add metadata for heatmaps:
 ```{r}
 sites$type <- "insertion" # real integration event
 sites$siteID <- seq(1, nrow(sites))
-sites_meta <- sites[c("siteID", "label", "type")]
+sites_meta <- sites[c("siteID", "sampleName", "type")]
 sites <- GRanges(sites$location, seqinfo = seqinfo(reference))
 mcols(sites) <- sites_meta
 ```
@@ -49,10 +54,10 @@ Now we need to create several(N_MRCs) matched random controls:
 N_MRCs <- 3
 siteIDs <- sites$siteID
 mrcs <- get_random_positions(siteIDs, reference, number_of_positions = N_MRCs)
-mrcs$label <- rep(sites$label, each=N_MRCs)
+mrcs$sampleName <- rep(sites$sampleName, each=N_MRCs)
 mrcs$type <- "match"
 mrcs$location <- paste0(mrcs$chr, ":", mrcs$position, "-", mrcs$position, ":", mrcs$strand)
-mrcs_meta <- mrcs[c("siteID", "label", "type")]
+mrcs_meta <- mrcs[c("siteID", "sampleName", "type")]
 mrcs <- GRanges(mrcs$location, seqinfo=seqinfo(reference))
 mcols(mrcs) <- mrcs_meta
 ```
@@ -62,10 +67,32 @@ sites and controls, 'type' to distiunguish them and 'label' for final labeling o
 plot:
 ```{r}
 sites_mrcs <- c(sites, mrcs)
+sites_mrcs$chr <- seqnames(sites_mrcs)
+sites_mrcs$position <- start(sites_mrcs)
 ```
 
 
 # Genomic Heatmap
 
+We now can pull genomic features from UCSC and use `pipeUtils` package to 
+find if distribution of sites are different for real sites and controls:
+
+```{r}
+sites_to_heatmap(sites_mrcs, referenceGenome, "genomic_heatmap")
+```
+
+Description of the features can be found at 
+[RosettaStone](https://github.com/BushmanLab/genomicHeatmapMaker/blob/master/genomicFeaturesRosettaStone.pdf).
+
 # Epigenetic Heatmap
+
+Among all of the epigenetic features we are going to chose CD133+:
+```{r}
+annotation_path <- file.path("/media/THING1/dryga/Epigenetic/", referenceGenome)
+
+```
+
+
+
+
 
