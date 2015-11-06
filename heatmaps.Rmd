@@ -1,6 +1,4 @@
-# Imports
-
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
 library(devtools)
 library(GenomicRanges)
@@ -10,28 +8,29 @@ library(BSgenome)
 library(pipeUtils)
 
 source_url('https://raw.githubusercontent.com/BushmanLab/genomicHeatmapMaker/master/genomicHeatmapMaker.R')
+source_url('https://raw.githubusercontent.com/BushmanLab/EpigeneticHeatmapMaker/master/epigeneticHeatMapMaker.R')
 source_url('https://raw.githubusercontent.com/BushmanLab/genomicHeatmapMaker/master/utils.R')
 ```
 
-# Data Wrangling
+# Sites Observed in Cell Types
 
-Lets load reference genome:
+Lets load reference genome and sequence lenghts of chromosomes:
 ```{r}
 referenceGenome <- "hg18"
 reference <- get_reference_genome(referenceGenome)
 ```
 
 Cell type and genomic location data:
-```{r}
+```{r read_fdr}
 cellType_location <- read.csv("fdr-empir.csv")
 columns <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell", "location")
 cell_location <- select(cellType_location, one_of(columns)) 
 # TEMP FOR DEVELOPMENT
-cell_location <- sample_frac(cell_location, 0.05)
+cell_location <- sample_frac(cell_location, 0.01)
 ```
 
 For each cell type we need to get genomic locations of sites:
-```{r}
+```{r split_based_on_cell_type}
 cell_types <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell")
 sites_for_cell_type <- lapply(cell_types, function(cell_type) {
     cell_type_present <- filter_(cell_location, paste(cell_type, " > 0"))
@@ -40,44 +39,42 @@ sites_for_cell_type <- lapply(cell_types, function(cell_type) {
 sites <- do.call(rbind, sites_for_cell_type)
 ```
 
-Create genomic ranges object and add metadata for heatmaps:
+Add metadata for heatmaps to connect conrols and observed sites:
 ```{r}
 sites$type <- "insertion" # real integration event
-sites$siteID <- seq(1, nrow(sites))
-sites_meta <- sites[c("siteID", "sampleName", "type")]
-sites <- GRanges(sites$location, seqinfo = seqinfo(reference))
-mcols(sites) <- sites_meta
+sites$siteID <- seq(1, nrow(sites)) + 12345
 ```
+We are adding random constant to set as a seed for control generation.
 
 Now we need to create several(N_MRCs) matched random controls:
-```{r}
+```{r generate_controls}
 N_MRCs <- 3
 siteIDs <- sites$siteID
 mrcs <- get_random_positions(siteIDs, reference, number_of_positions = N_MRCs)
 mrcs$sampleName <- rep(sites$sampleName, each=N_MRCs)
 mrcs$type <- "match"
 mrcs$location <- paste0(mrcs$chr, ":", mrcs$position, "-", mrcs$position, ":", mrcs$strand)
-mrcs_meta <- mrcs[c("siteID", "sampleName", "type")]
-mrcs <- GRanges(mrcs$location, seqinfo=seqinfo(reference))
-mcols(mrcs) <- mrcs_meta
+mrcs <- mrcs[c("location", "sampleName", "type", "siteID")]
 ```
 
-Now we have real sites and controls and required metadata. 'SiteID' to link
-sites and controls, 'type' to distiunguish them and 'label' for final labeling on 
-plot:
-```{r}
-sites_mrcs <- c(sites, mrcs)
+Now we have real sites and controls and required metadata and can convert it to
+GRanges object. 'SiteID' to link sites and controls, 'type' to distinguish them
+and 'sampeName' for final labeling on plot:
+```{r merge_sites_controls}
+sites_mrcs <- rbind(sites, mrcs)
+sites_meta <- sites_mrcs[c("sampleName", "type", "siteID")]
+sites_mrcs <- GRanges(sites_mrcs$location, seqinfo=seqinfo(reference))
+mcols(sites_mrcs) <- sites_meta
 sites_mrcs$chr <- seqnames(sites_mrcs)
 sites_mrcs$position <- start(sites_mrcs)
 ```
-
 
 # Genomic Heatmap
 
 We now can pull genomic features from UCSC and use `pipeUtils` package to 
 find if distribution of sites are different for real sites and controls:
 
-```{r}
+```{r genomic_heatmap}
 sites_to_heatmap(sites_mrcs, referenceGenome, "genomic_heatmap")
 ```
 
@@ -86,11 +83,33 @@ Description of the features can be found at
 
 # Epigenetic Heatmap
 
-Among all of the epigenetic features we are going to chose CD133+:
+Epigenetic features are stored locally:
 ```{r}
 annotation_path <- file.path("/media/THING1/dryga/Epigenetic/", referenceGenome)
-
+histoneorder <- epigenetic_features()
 ```
+
+Among all of the epigenetic features we are going to use CD133+:
+```{r}
+histoneorder <- grep('CD133', histoneorder, value=TRUE)
+histoneorder
+```
+
+Now we can generate epigenetic heatmap:
+```{r epi_heatmap}
+sites_to_epigenetic_heatmap(sites_mrcs, referenceGenome, "epigenetic_heatmap", 
+    annotation_path, histoneorder)
+```
+
+# Sites Seen Only in Single Cell Type
+
+Here we perform the same analysis but for sites seen only(more accurately - mostly)
+in single cell type. The formal definition is: sites that have 3 or more cells 
+counted in only a single cell type.
+
+In progress...
+
+
 
 
 
