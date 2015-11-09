@@ -7,3 +7,10 @@ column described in `oct25-facs-fdr.prf` section 5.1.
 
 # Results 
 Standard Figures are in 'genomic_heatmap' and 'epi_heatmap' folders.
+
+# Document Generation
+
+In bash:
+```
+Rscript -e "rmarkdown::render('heatmaps.Rmd', 'pdf_document')"
+```
