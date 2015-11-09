@@ -20,16 +20,14 @@ referenceGenome <- "hg18"
 reference <- get_reference_genome(referenceGenome)
 ```
 
-Cell type and genomic location data:
+Cell types, cell counts and genomic location data:
 ```{r read_fdr}
 cellType_location <- read.csv("fdr-empir.csv")
 columns <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell", "location")
 cell_location <- select(cellType_location, one_of(columns)) 
-# TEMP FOR DEVELOPMENT
-cell_location <- sample_frac(cell_location, 0.01)
 ```
 
-For each cell type we need to get genomic locations of sites:
+For each cell type(N cells > 0) we need to get genomic locations of sites:
 ```{r split_based_on_cell_type}
 cell_types <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell")
 sites_for_cell_type <- lapply(cell_types, function(cell_type) {
@@ -44,7 +42,7 @@ Add metadata for heatmaps to connect conrols and observed sites:
 sites$type <- "insertion" # real integration event
 sites$siteID <- seq(1, nrow(sites)) + 12345
 ```
-We are adding random constant to set as a seed for control generation.
+We are adding random constant as a seed for control(MRCs) generation.
 
 Now we need to create several(N_MRCs) matched random controls:
 ```{r generate_controls}
@@ -78,7 +76,7 @@ find if distribution of sites are different for real sites and controls:
 sites_to_heatmap(sites_mrcs, referenceGenome, "genomic_heatmap")
 ```
 
-Description of the features can be found at 
+Description of the features and ROC  interpretation can be found at 
 [RosettaStone](https://github.com/BushmanLab/genomicHeatmapMaker/blob/master/genomicFeaturesRosettaStone.pdf).
 
 # Epigenetic Heatmap
@@ -89,7 +87,7 @@ annotation_path <- file.path("/media/THING1/dryga/Epigenetic/", referenceGenome)
 histoneorder <- epigenetic_features()
 ```
 
-Among all of the epigenetic features we are going to use CD133+:
+Among all of the epigenetic features we are going to use CD133+ only:
 ```{r}
 histoneorder <- grep('CD133', histoneorder, value=TRUE)
 histoneorder
@@ -101,11 +99,11 @@ sites_to_epigenetic_heatmap(sites_mrcs, referenceGenome, "epigenetic_heatmap",
     annotation_path, histoneorder)
 ```
 
-# Sites Seen Only in Single Cell Type
+# Sites Seen Predominantly in Single Cell Type
 
 Here we perform the same analysis but for sites seen only(more accurately - mostly)
 in single cell type. The formal definition is: sites that have 3 or more cells 
-counted in only a single cell type.
+counted in only single cell type.
 
 In progress...
 
