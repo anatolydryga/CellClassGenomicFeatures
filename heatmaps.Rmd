@@ -25,6 +25,7 @@ Cell types, cell counts and genomic location data:
 cellType_location <- read.csv("fdr-empir.csv")
 columns <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell", "location")
 cell_location <- select(cellType_location, one_of(columns)) 
+str(cell_location)
 ```
 
 For each cell type(N cells > 0) we need to get genomic locations of sites:
@@ -35,6 +36,8 @@ sites_for_cell_type <- lapply(cell_types, function(cell_type) {
     data_frame(location=cell_type_present$location, sampleName=cell_type) 
 })
 sites <- do.call(rbind, sites_for_cell_type)
+str(sites)
+table(sites$sampleName)
 ```
 
 Add metadata for heatmaps to connect conrols and observed sites:
