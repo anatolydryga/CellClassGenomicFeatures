@@ -31,6 +31,7 @@ str(cell_location)
 For each cell type(N cells > 0) we need to get genomic locations of sites:
 ```{r split_based_on_cell_type}
 cell_types <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell")
+cell_types
 sites_for_cell_type <- lapply(cell_types, function(cell_type) {
     cell_type_present <- filter_(cell_location, paste(cell_type, " > 0"))
     data_frame(location=cell_type_present$location, sampleName=cell_type) 
@@ -108,7 +109,57 @@ Here we perform the same analysis but for sites seen only(more accurately - most
 in single cell type. The formal definition is: sites that have 3 or more cells 
 counted in only single cell type.
 
-In progress...
+Lets calculate presence/absence for all cell types:
+```{r}
+N_CUT_OFF <- 3
+cellPresent_location <- cell_location
+res <- lapply(cell_types, function(cell_type) {
+    cellPresent_location[ , cell_type] <<- cellPresent_location[ , cell_type] >= N_CUT_OFF
+})
+```
+
+Now we can find cases when only one cell type present:
+```{r}
+cellPresent_location$is_singleton <- 0
+res <- lapply(cell_types, function(cell_type) {
+    cellPresent_location$is_singleton <<- 
+        cellPresent_location$is_singleton + as.integer(cellPresent_location[ , cell_type])
+    # using type conversion: T to 1, F to 0
+})
+cellPresent_location <- mutate(cellPresent_location, is_singleton = (is_singleton == 1))
+```
+
+Most of the sites observed in multiple cell types:
+```{r}
+table(cellPresent_location$is_singleton)
+```
+
+Lets get sites that only observed only in one cell type, that would require removal
+of some cell types:
+```{r}
+cellPresent_location <- filter(cellPresent_location, is_singleton == TRUE)
+sites_count_cell_type <- sapply(cell_types, function(cell_type) {
+    sum(cellPresent_location[ , cell_type])
+})
+sites_count_cell_type
+N_SITES_CUT_OFF <- 3
+cell_types <- names(sites_count_cell_type)[sites_count_cell_type > N_SITES_CUT_OFF]
+cell_types
+```
+
+For cell types with enough sites:
+```{r}
+singleton_sites_for_cell_type <- lapply(cell_types, function(cell_type) {
+    cell_type_present <- filter_(cellPresent_location, paste(cell_type, " == TRUE"))
+    data_frame(location=cell_type_present$location, sampleName=cell_type) 
+})
+singleton_sites <- do.call(rbind, singleton_sites_for_cell_type)
+table(singleton_sites$sampleName)
+```
+
+
+
+
 
 
 
