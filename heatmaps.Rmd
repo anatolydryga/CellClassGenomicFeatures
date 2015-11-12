@@ -12,6 +12,9 @@ source_url('https://raw.githubusercontent.com/BushmanLab/EpigeneticHeatmapMaker/
 source_url('https://raw.githubusercontent.com/BushmanLab/genomicHeatmapMaker/master/utils.R')
 ```
 
+# Summary
+...
+
 # Sites Observed in Cell Types
 
 Lets load reference genome and sequence lenghts of chromosomes:
@@ -167,7 +170,7 @@ table(singleton_sites$sampleName)
 Add metadata for heatmaps to connect conrols and observed sites:
 ```{r}
 singleton_sites$type <- "insertion" # real integration event
-singleton_sites$siteID <- seq(1, nrow(sites)) + 3141592
+singleton_sites$siteID <- seq(1, nrow(singleton_sites)) + 3141592
 ```
 
 Now we can add controls and create final Granges object:
