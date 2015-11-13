@@ -1,3 +1,6 @@
+---
+output: html_document
+---
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
 library(devtools)
@@ -130,13 +133,8 @@ res <- lapply(cell_types, function(cell_type) {
 
 Now we can find cases when only one cell type present:
 ```{r}
-cellPresent_location$is_singleton <- 0
-res <- lapply(cell_types, function(cell_type) {
-    cellPresent_location$is_singleton <<- 
-        cellPresent_location$is_singleton + as.integer(cellPresent_location[ , cell_type])
-    # using type conversion: T to 1, F to 0
-})
-cellPresent_location <- mutate(cellPresent_location, is_singleton = (is_singleton == 1))
+cellPresent_location$n_cell_types <- rowSums(cellPresent_location[ , cell_types])
+cellPresent_location <- mutate(cellPresent_location, is_singleton = (n_cell_types == 1))
 ```
 
 Most of the sites observed in multiple cell types:
@@ -144,17 +142,10 @@ Most of the sites observed in multiple cell types:
 table(cellPresent_location$is_singleton)
 ```
 
-Lets get sites that only observed only in one cell type, that would require removal
-of some cell types:
+Lets get sites that only observed only in one cell type:
 ```{r}
 cellPresent_location <- filter(cellPresent_location, is_singleton == TRUE)
-sites_count_cell_type <- sapply(cell_types, function(cell_type) {
-    sum(cellPresent_location[ , cell_type])
-})
-sites_count_cell_type
-N_SITES_CUT_OFF <- 3
-cell_types <- names(sites_count_cell_type)[sites_count_cell_type > N_SITES_CUT_OFF]
-cell_types
+colSums(cellPresent_location[, cell_types])
 ```
 
 For cell types with enough sites:
