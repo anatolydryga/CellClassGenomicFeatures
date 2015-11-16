@@ -28,11 +28,16 @@ reference <- get_reference_genome(referenceGenome)
 
 Cell types, cell counts and genomic location data:
 ```{r read_fdr}
-cellType_location <- read.csv("fdr-empir.csv")
-columns <- c("Neutrophil", "Bcell", "Tcell", "Monocytes", "NKcell", "location")
-cell_location <- select(cellType_location, one_of(columns)) 
+cell_location <- read.csv("fdr-empir.csv")
 str(cell_location)
 ```
+
+Progenitor sites are sites that found in all 5 cell types:
+```{r}
+progenitor_sites <- filter(cell_location, qval.5 < 0.10)
+progenitors <- data_frame(location=progenitor_sites$location, sampleName="Progenitor")
+```
+
 
 For each cell type(N cells > 0) we need to get genomic locations of sites:
 ```{r split_based_on_cell_type}
@@ -43,6 +48,7 @@ sites_for_cell_type <- lapply(cell_types, function(cell_type) {
     data_frame(location=cell_type_present$location, sampleName=cell_type) 
 })
 sites <- do.call(rbind, sites_for_cell_type)
+sites <- rbind(sites, progenitors)
 str(sites)
 table(sites$sampleName)
 ```
@@ -155,6 +161,7 @@ singleton_sites_for_cell_type <- lapply(cell_types, function(cell_type) {
     data_frame(location=cell_type_present$location, sampleName=cell_type) 
 })
 singleton_sites <- do.call(rbind, singleton_sites_for_cell_type)
+singleton_sites <- rbind(singleton_sites, progenitors)
 table(singleton_sites$sampleName)
 ```
 
